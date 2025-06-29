@@ -1,0 +1,189 @@
+/* Conteneur principal */
+.bh-wrapper { padding:1.5rem; background:#f3f3f3; min-height:100vh; }
+
+/* Titres */
+.bh-title   { font-size:1.6rem; font-weight:700; color:#b30000; text-align:center; margin-bottom:.25rem; }
+.bh-banner  { background:#0064c8; color:#fff; font-weight:600; text-align:center; padding:.5rem; margin-bottom:1rem; }
+
+/* Grille paramètres */
+.bh-grid2   { display:grid; grid-template-columns:1fr 1fr; gap:1rem; max-width:640px; margin:0 auto 2rem; }
+.bh-label   { display:flex; flex-direction:column; font-size:.9rem; }
+.bh-input   { border:1px solid #999; border-radius:4px; padding:.25rem .5rem; }
+
+/* Boutons */
+.bh-btn     { border:none; border-radius:4px; padding:.5rem 1.25rem; color:#fff; cursor:pointer; font-weight:600; }
+.bh-run     { background:#15803d; }        /* vert   */
+.bh-pdf     { background:#0064c8; }        /* bleu   */
+.bh-btn:disabled{opacity:.6;cursor:default}
+
+/* Tables */
+.bh-table   { border-collapse:collapse; margin:0 auto; }
+.bh-table th, .bh-table td { border:1px solid #000; padding:.25rem .5rem; text-align:center; }
+.bh-th-pen  { color:#0455c7; font-weight:700; }
+
+/* Surbrillances */
+.bh-max     { background:#ffd4d4; }      /* pénalité max */
+.bh-chosen  { background:#ffec9c; }      /* case choisie */
+.bh-done    { background:#d9d9d9; }      /* ligne/col terminée */
+
+/* Graphe */
+.bh-svg     { background:#fff; border:1px solid #000; box-shadow:0 0 4px #0003; }
+
+/* Cadre d’étape */
+.bh-step    { background:#fff; border:1px solid #000; border-radius:6px; padding:1rem; box-shadow:0 2px 4px #0002; margin-bottom:2.5rem; max-width:900px; }
+
+/* Z final */
+.bh-z       { font-weight:700; font-size:1.1rem; text-align:center; margin-top:.75rem; }
+/* Suppression des bordures des tableaux */
+
+/* Styles pour les nouveaux tableaux */
+.bh-matrix-table {
+  border-collapse: collapse;
+  margin: 1rem auto;
+  font-size: 0.9rem;
+}
+
+.bh-matrix-table th, 
+.bh-matrix-table td {
+  padding: 0.5rem;
+  text-align: center;
+  min-width: 3rem;
+}
+
+.bh-matrix-table .bh-header-cell {
+  font-weight: bold;
+  background-color: #f5f5f5;
+}
+
+.bh-matrix-table .bh-offer-cell {
+  font-weight: bold;
+  color: #b30000;
+}
+
+.bh-matrix-table .bh-demand-cell {
+  font-weight: bold;
+  color: #b30000;
+}
+
+.bh-matrix-table .bh-allocation {
+  color: #c00;
+  font-weight: bold;
+  margin-left: 0.3rem;
+}
+
+.bh-step-container {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.bh-table-container {
+  flex: 1;
+  min-width: 300px;
+}
+.bh-table {
+  border-collapse: collapse;
+}
+/* Suppression TOUTES les bordures par défaut */
+.bh-table,
+.bh-table th,
+.bh-table td {
+  border: none !important;
+}
+
+/* Bordures UNIQUEMENT pour les cellules de données internes */
+.bh-table tbody td:not(:first-child) {
+  border: 1px solid black !important;
+}
+
+/* Style des en-têtes */
+.bh-table thead th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+}
+
+.bh-table tbody td:first-child {
+  background-color: #f5f5f5;
+  font-weight: bold;
+}
+
+/* Style des cellules spéciales (comme les offres) */
+.bh-offer {
+  background-color: #fff0f0; /* conserve le style spécial si nécessaire */
+}
+.bh-penalty {
+  font-weight: 500;
+  background-color: #f8f8f8;
+}
+
+.bh-max-penalty {
+  background-color: #fff0f0;
+  color: #d00;
+  font-weight: 700;
+}
+
+.bh-step-container {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.bh-table-container {
+  flex: 1;
+  min-width: 300px;
+}
+
+.bh-matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.bh-matrix-table th, 
+.bh-matrix-table td {
+  padding: 0.5rem;
+  border: 1px solid #e0e0e0;
+  text-align: center;
+}
+
+.bh-header-cell {
+  background-color: #f5f5f5;
+  font-weight: 600;
+}
+
+.bh-offer-cell {
+  color: #b30000;
+  font-weight: 500;
+}
+
+.bh-demand-cell {
+  color: #0066cc;
+  font-weight: 500;
+}
+
+.bh-allocation {
+  color: #c00;
+  font-weight: 700;
+  margin-left: 0.3rem;
+}
+
+.bh-z {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #006400;
+  margin-top: 1rem;
+}
+.bh-chosen-cell {
+  background-color: #f0f7ff;
+  outline: 2px solid #4a90e2;
+}
+
+.bh-allocation {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  color: #c00;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
