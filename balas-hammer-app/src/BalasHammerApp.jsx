@@ -19,177 +19,126 @@ import jsPDF from "jspdf";
 /******************************
  * Helpers & Algo
  *****************************/
+function clone2D(arr) {
+  return arr.map((row) => [...row]);
+}
+
+function getTwoMin(arr) {
+  const sorted = [...arr].sort((a, b) => a - b);
+  return [sorted[0], sorted[1] ?? sorted[0]];
+}
 
 function balasHammer(costs, offerOrig, demandOrig) {
   const m = costs.length;
   const n = costs[0].length;
-  const allocations = Array.from({ length: m }, () => Array(n).fill(null));
-  const steps = [];
-  
-  // Vérification des données d'entrée
-  if (m === 0 || n === 0) {
-    return [{
-      allocations,
-      offer: [...offerOrig],
-      demand: [...demandOrig],
-      note: "Erreur : Matrice vide",
-      z: 0
-    }];
-  }
-
-  // Calcul des totaux
-  const totalOffer = offerOrig.reduce((a, b) => a + b, 0);
-  const totalDemand = demandOrig.reduce((a, b) => a + b, 0);
-
-  // Vérification équilibre
-  if (totalOffer !== totalDemand) {
-    return [{
-      allocations,
-      offer: [...offerOrig],
-      demand: [...demandOrig],
-      note: `Erreur : Déséquilibre (Offre: ${totalOffer} ≠ Demande: ${totalDemand})`,
-      z: 0
-    }];
-  }
-
   let offer = [...offerOrig];
   let demand = [...demandOrig];
-  const allocationHistory = new Set();
+  const allocations = Array.from({ length: m }, () => Array(n).fill(null));
+  const steps = [];
 
-  // Algorithme principal avec gestion intégrée de la dégénérescence
-  while (true) {
-    let madeAllocation = false;
-    
-    // Phase 1: Allocations normales
-    while (offer.some(o => o > 0) && demand.some(d => d > 0)) {
-      // Calcul des pénalités
-      const rowPen = costs.map((row, i) => {
-        if (offer[i] === 0) return -1;
-        const active = row.map((c, j) => demand[j] > 0 ? c : Infinity);
-        const [min1, min2] = getTwoMin(active.filter(x => x !== Infinity));
-        return min2 - min1;
-      });
+  while (offer.some((o) => o > 0) && demand.some((d) => d > 0)) {
+    const rowPen = costs.map((row, i) => {
+      if (offer[i] === 0) return -1;
+      const [min1, min2] = getTwoMin(row.filter((_, j) => demand[j] > 0));
+      return min2 - min1;
+    });
 
-      const colPen = costs[0].map((_, j) => {
-        if (demand[j] === 0) return -1;
-        const active = costs.map((row, i) => offer[i] > 0 ? row[j] : Infinity);
-        const [min1, min2] = getTwoMin(active.filter(x => x !== Infinity));
-        return min2 - min1;
-      });
+    const colPen = costs[0].map((_, j) => {
+      if (demand[j] === 0) return -1;
+      const col = costs.map((row) => row[j]);
+      const [min1, min2] = getTwoMin(col.filter((_, i) => offer[i] > 0));
+      return min2 - min1;
+    });
 
-      // Sélection de la pénalité max
-      const maxRowPen = Math.max(...rowPen);
-      const maxColPen = Math.max(...colPen);
-      const useRow = maxRowPen >= maxColPen;
+    const maxRowPen = Math.max(...rowPen);
+    const maxColPen = Math.max(...colPen);
 
-      // Trouver la meilleure cellule
-      let bestCell = { i: -1, j: -1, cost: Infinity };
-      
-      if (useRow && maxRowPen >= 0) {
-        const i = rowPen.indexOf(maxRowPen);
-        for (let j = 0; j < n; j++) {
-          if (demand[j] > 0 && costs[i][j] < bestCell.cost) {
-            bestCell = { i, j, cost: costs[i][j] };
-          }
-        }
-      } else if (maxColPen >= 0) {
-        const j = colPen.indexOf(maxColPen);
-        for (let i = 0; i < m; i++) {
-          if (offer[i] > 0 && costs[i][j] < bestCell.cost) {
-            bestCell = { i, j, cost: costs[i][j] };
-          }
-        }
-      }
+    let chosenRow, chosenCol;
 
-      // Faire l'allocation
-      if (bestCell.i !== -1) {
-        const qty = Math.min(offer[bestCell.i], demand[bestCell.j]);
-        allocations[bestCell.i][bestCell.j] = qty;
-        allocationHistory.add(`${bestCell.i},${bestCell.j}`);
-        offer[bestCell.i] -= qty;
-        demand[bestCell.j] -= qty;
-        madeAllocation = true;
-
-        steps.push({
-          allocations: clone2D(allocations),
-          offer: [...offer],
-          demand: [...demand],
-          chosen: [bestCell.i, bestCell.j],
-          note: `Allocation: ${String.fromCharCode(65 + bestCell.i)}→${bestCell.j + 1} (${qty})`
-        });
-      } else {
-        break;
-      }
+    if (maxRowPen >= maxColPen) {
+      chosenRow = rowPen.indexOf(maxRowPen);
+      const minCost = Math.min(
+        ...costs[chosenRow].filter((_, j) => demand[j] > 0)
+      );
+      chosenCol = costs[chosenRow].findIndex(
+        (c, j) => c === minCost && demand[j] > 0
+      );
+    } else {
+      chosenCol = colPen.indexOf(maxColPen);
+      const column = costs.map((row) => row[chosenCol]);
+      const minCost = Math.min(...column.filter((_, i) => offer[i] > 0));
+      chosenRow = column.findIndex((c, i) => c === minCost && offer[i] > 0);
     }
 
-    // Phase 2: Vérification dégénérescence
-    const needed = m + n - 1;
-    const current = allocationHistory.size;
-    
-    if (current >= needed) break;
-    
-    // Trouver la meilleure case pour epsilon
-    let bestEpsilon = { i: -1, j: -1, cost: Infinity };
-    for (let i = 0; i < m; i++) {
-      for (let j = 0; j < n; j++) {
-        if (allocations[i][j] === null && costs[i][j] < bestEpsilon.cost) {
-          bestEpsilon = { i, j, cost: costs[i][j] };
-        }
-      }
-    }
+    const quantity = Math.min(offer[chosenRow], demand[chosenCol]);
+    allocations[chosenRow][chosenCol] = quantity;
+    offer[chosenRow] -= quantity;
+    demand[chosenCol] -= quantity;
 
-    if (bestEpsilon.i !== -1) {
-      allocations[bestEpsilon.i][bestEpsilon.j] = 0;
-      allocationHistory.add(`${bestEpsilon.i},${bestEpsilon.j}`);
-      steps.push({
-        allocations: clone2D(allocations),
-        offer: [...offer],
-        demand: [...demand],
-        note: `ε-allocation: ${String.fromCharCode(65 + bestEpsilon.i)}${bestEpsilon.j + 1}`
-      });
-    } else if (!madeAllocation) {
-      break; // Aucune allocation possible
-    }
+    steps.push({
+      allocations: clone2D(allocations),
+      offer: [...offer],
+      demand: [...demand],
+      chosen: [chosenRow, chosenCol],
+      penalties: { rowPen, colPen },
+      note: `Allocation de ${quantity}`,
+    });
   }
 
-  // Solution finale
-  const finalAllocations = allocationHistory.size;
-  const neededAllocations = m + n - 1;
-  
-  const finalStep = {
+  const needed = m + n - 1;
+  let currentAllocs = allocations.flat().filter((x) => x !== null).length;
+
+  while (currentAllocs < needed) {
+    let best = { i: -1, j: -1, cost: Infinity };
+
+    for (let i = 0; i < m; i++) {
+      for (let j = 0; j < n; j++) {
+        if (allocations[i][j] === null && costs[i][j] < best.cost) {
+          best = { i, j, cost: costs[i][j] };
+        }
+      }
+    }
+
+    if (best.i === -1) break;
+    allocations[best.i][best.j] = "ε";
+    currentAllocs++;
+  }
+
+  steps.push({
     allocations: clone2D(allocations),
     offer: [...offer],
     demand: [...demand],
-    note: finalAllocations >= neededAllocations
-      ? "Solution optimale"
-      : `Solution dégénérée (${finalAllocations}/${neededAllocations})`,
-    z: computeZ(costs, allocations)
-  };
+    chosen: null,
+    penalties: null,
+    note: "Fin de l'algorithme — solution de base obtenue",
+  });
 
-  return [...steps, finalStep];
+  return steps;
 }
 
-// Fonctions helper
-function getTwoMin(arr) {
-  const filtered = arr.filter(x => x !== null && isFinite(x));
-  if (filtered.length < 2) return [filtered[0] || Infinity, Infinity];
-  const sorted = [...filtered].sort((a, b) => a - b);
-  return [sorted[0], sorted[1]];
+function getCumulativeAllocation(steps, i, j, upToStep) {
+  let sum = 0;
+  for (let idx = 0; idx <= upToStep; idx++) {
+    const alloc = steps[idx].allocations[i][j];
+    if (alloc != null && alloc !== "ε") {
+      sum += alloc;
+    }
+  }
+  return sum;
 }
 
 function computeZ(costs, alloc) {
   let z = 0;
   for (let i = 0; i < costs.length; i++) {
     for (let j = 0; j < costs[0].length; j++) {
-      if (alloc[i][j] > 0) z += costs[i][j] * alloc[i][j];
+      if (alloc[i][j] != null && alloc[i][j] !== "ε") {
+        z += costs[i][j] * alloc[i][j];
+      }
     }
   }
   return z;
 }
 
-function clone2D(arr) {
-  return arr.map(row => [...row]);
-}
 /******************************
  * UI component
  *****************************/
@@ -468,7 +417,7 @@ const allCols = [...Array(cols).keys()]; // [0, 1, 2, 3, 4, 5]
               return (
                 <td
                   key={`c1-${j}`}
-                  className={isActive && isChosen ? "cell-red" : ""}
+                  className={isChosen ? "cell-red" : ""}
                 >
                   {isActive ? (
                     <>
@@ -540,7 +489,7 @@ const allCols = [...Array(cols).keys()]; // [0, 1, 2, 3, 4, 5]
 
           {Array.from({ length: cols }, (_, j) => {
             // Trouver la première étape (jusqu'à k) où la cellule (i,j) a été choisie
-            const matchedStep = steps
+           /* const matchedStep = steps
               .slice(0, k + 1)
               .find((s) => s.chosen?.[0] === i && s.chosen?.[1] === j);
 
@@ -549,17 +498,21 @@ const allCols = [...Array(cols).keys()]; // [0, 1, 2, 3, 4, 5]
             }
 
             const cost = costs[i][j];
-            const alloc = matchedStep.allocations[i][j];
+            const alloc = matchedStep.allocations[i][j];*/
+             const alloc = getCumulativeAllocation(steps, i, j, k);
+  if (alloc === 0) return <td key={`c2-${j}`}></td>;
+
+  const cost = costs[i][j];
 
             return (
-              <td key={`c2-${j}`}>
-                <div>
-                  {cost}
-                  {alloc !== null && <div className="bh-allocation">{alloc}</div>}
-                </div>
-              </td>
-            );
-          })}
+    <td key={`c2-${j}`}>
+      <div>
+        {cost}
+        <div className="bh-allocation">{alloc}</div>
+      </div>
+    </td>
+  );
+})}
 
 
           {/* Offre actuelle à l'étape k */}
