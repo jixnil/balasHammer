@@ -123,12 +123,7 @@
   font-weight: 700;
 }
 
-.bh-step-container {
-  display: flex;
-  gap: 2rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-}
+
 
 .bh-table-container {
   flex: 1;
@@ -187,3 +182,126 @@
   font-weight: 700;
   font-size: 0.85rem;
 }
+
+.step-frame {
+  border: 2px solid #222;
+  padding: 1rem;
+  margin-bottom: 2rem;
+  background-color: #fff;
+}
+
+.step-title {
+  text-align: center;
+  font-weight: bold;
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+}
+
+.step-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+
+.step-table th,
+.step-table td {
+  border: 1px solid #999;
+  padding: 6px;
+  text-align: center;
+  min-width: 40px;
+}
+
+.chosen-cell {
+  background-color: #ffff99;
+  font-weight: bold;
+}
+
+.alloc-cell {
+  color: #b30000;
+  font-weight: bold;
+  display: block;
+  font-size: 0.85rem;
+}
+
+.max-penalty {
+  background-color: #ffc0c0;
+  font-weight: bold;
+}
+
+.step-note {
+  font-style: italic;
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+.final-result {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 1.1rem;
+}
+
+.z-value {
+  font-weight: bold;
+  margin-bottom: 0.3rem;
+}
+.cell-red {
+  background-color: red;
+  color: white;
+  font-weight: bold;
+}
+
+.diff-blue {
+  color: #0070c0;
+  font-weight: bold;
+}
+
+.max-pen {
+  text-decoration: underline;
+}
+
+.bh-allocation {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: #b30000;
+}
+.cell-red {
+  background-color: red;
+  color: white;
+  font-weight: bold;
+}
+
+.cell-no-border {
+  border: none !important;
+  background-color: white;
+}
+
+.bh-allocation {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #b30000;
+}
+
+.penalty-normal {
+  color: #c00;
+  font-weight: bold;
+  text-align: center;
+}
+
+.penalty-red {
+  color: red;
+  font-weight: bold;
+  text-align: center;
+}
+.max-pen {
+  color: red;
+  font-weight: bold;
+}
+.bh-step-container {
+  display: flex;
+  flex-direction: column; /* obligatoire pour empiler */
+  gap: 2rem; /* alternative à margin */
+}
+

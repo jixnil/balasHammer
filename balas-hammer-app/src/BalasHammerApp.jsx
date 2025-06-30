@@ -20,120 +20,176 @@ import jsPDF from "jspdf";
  * Helpers & Algo
  *****************************/
 
-function clone2D(arr) {
-  return arr.map((row) => [...row]);
-}
-
-function getTwoMin(arr) {
-  const sorted = [...arr].sort((a, b) => a - b);
-  return [sorted[0], sorted[1] ?? sorted[0]];
-}
-
-/**
- * Exécute l'algorithme et renvoie un tableau d'étapes ;
- * chaque étape = { allocations, offer, demand, chosen, penalties, note }
- */
 function balasHammer(costs, offerOrig, demandOrig) {
   const m = costs.length;
   const n = costs[0].length;
-  let offer = [...offerOrig];
-  let demand = [...demandOrig];
   const allocations = Array.from({ length: m }, () => Array(n).fill(null));
-
   const steps = [];
-
-  while (offer.some((o) => o > 0) && demand.some((d) => d > 0)) {
-    // 1. pénalités lignes & colonnes
-    const rowPen = costs.map((row, i) => {
-      if (offer[i] === 0) return -1; // déjà épuisée
-      const [min1, min2] = getTwoMin(row.filter((_, j) => demand[j] > 0));
-      return min2 - min1;
-    });
-    const colPen = costs[0].map((_, j) => {
-      if (demand[j] === 0) return -1;
-      const col = costs.map((row) => row[j]);
-      const [min1, min2] = getTwoMin(col.filter((_, i) => offer[i] > 0));
-      return min2 - min1;
-    });
-
-    const maxRowPen = Math.max(...rowPen);
-    const maxColPen = Math.max(...colPen);
-
-    let chosenRow = null,
-      chosenCol = null;
-
-    if (maxRowPen >= maxColPen) {
-      chosenRow = rowPen.indexOf(maxRowPen);
-      // cellule de coût minimal dans cette ligne parmi colonnes dispos
-      const minCost = Math.min(
-        ...costs[chosenRow].filter((_, j) => demand[j] > 0)
-      );
-      chosenCol = costs[chosenRow].findIndex(
-        (c, j) => c === minCost && demand[j] > 0
-      );
-    } else {
-      chosenCol = colPen.indexOf(maxColPen);
-      // coût min dans cette colonne parmi lignes dispos
-      const column = costs.map((row) => row[chosenCol]);
-      const minCost = Math.min(...column.filter((_, i) => offer[i] > 0));
-      chosenRow = column.findIndex((c, i) => c === minCost && offer[i] > 0);
-    }
-
-    const quantity = Math.min(offer[chosenRow], demand[chosenCol]);
-    allocations[chosenRow][chosenCol] = quantity;
-
-    offer[chosenRow] -= quantity;
-    demand[chosenCol] -= quantity;
-
-    steps.push({
-      allocations: clone2D(allocations),
-      offer: [...offer],
-      demand: [...demand],
-      chosen: [chosenRow, chosenCol],
-      penalties: { rowPen, colPen },
-      note: `Allocation de ${quantity}`,
-    });
+  
+  // Vérification des données d'entrée
+  if (m === 0 || n === 0) {
+    return [{
+      allocations,
+      offer: [...offerOrig],
+      demand: [...demandOrig],
+      note: "Erreur : Matrice vide",
+      z: 0
+    }];
   }
 
-  /* Gestion dégénérescence */
-  const needed = m + n - 1;
-  let currentAllocs = allocations.flat().filter((x) => x !== null).length;
-  while (currentAllocs < needed) {
-    // trouver la coût minimal restant
-    let best = { i: -1, j: -1, cost: Infinity };
+  // Calcul des totaux
+  const totalOffer = offerOrig.reduce((a, b) => a + b, 0);
+  const totalDemand = demandOrig.reduce((a, b) => a + b, 0);
+
+  // Vérification équilibre
+  if (totalOffer !== totalDemand) {
+    return [{
+      allocations,
+      offer: [...offerOrig],
+      demand: [...demandOrig],
+      note: `Erreur : Déséquilibre (Offre: ${totalOffer} ≠ Demande: ${totalDemand})`,
+      z: 0
+    }];
+  }
+
+  let offer = [...offerOrig];
+  let demand = [...demandOrig];
+  const allocationHistory = new Set();
+
+  // Algorithme principal avec gestion intégrée de la dégénérescence
+  while (true) {
+    let madeAllocation = false;
+    
+    // Phase 1: Allocations normales
+    while (offer.some(o => o > 0) && demand.some(d => d > 0)) {
+      // Calcul des pénalités
+      const rowPen = costs.map((row, i) => {
+        if (offer[i] === 0) return -1;
+        const active = row.map((c, j) => demand[j] > 0 ? c : Infinity);
+        const [min1, min2] = getTwoMin(active.filter(x => x !== Infinity));
+        return min2 - min1;
+      });
+
+      const colPen = costs[0].map((_, j) => {
+        if (demand[j] === 0) return -1;
+        const active = costs.map((row, i) => offer[i] > 0 ? row[j] : Infinity);
+        const [min1, min2] = getTwoMin(active.filter(x => x !== Infinity));
+        return min2 - min1;
+      });
+
+      // Sélection de la pénalité max
+      const maxRowPen = Math.max(...rowPen);
+      const maxColPen = Math.max(...colPen);
+      const useRow = maxRowPen >= maxColPen;
+
+      // Trouver la meilleure cellule
+      let bestCell = { i: -1, j: -1, cost: Infinity };
+      
+      if (useRow && maxRowPen >= 0) {
+        const i = rowPen.indexOf(maxRowPen);
+        for (let j = 0; j < n; j++) {
+          if (demand[j] > 0 && costs[i][j] < bestCell.cost) {
+            bestCell = { i, j, cost: costs[i][j] };
+          }
+        }
+      } else if (maxColPen >= 0) {
+        const j = colPen.indexOf(maxColPen);
+        for (let i = 0; i < m; i++) {
+          if (offer[i] > 0 && costs[i][j] < bestCell.cost) {
+            bestCell = { i, j, cost: costs[i][j] };
+          }
+        }
+      }
+
+      // Faire l'allocation
+      if (bestCell.i !== -1) {
+        const qty = Math.min(offer[bestCell.i], demand[bestCell.j]);
+        allocations[bestCell.i][bestCell.j] = qty;
+        allocationHistory.add(`${bestCell.i},${bestCell.j}`);
+        offer[bestCell.i] -= qty;
+        demand[bestCell.j] -= qty;
+        madeAllocation = true;
+
+        steps.push({
+          allocations: clone2D(allocations),
+          offer: [...offer],
+          demand: [...demand],
+          chosen: [bestCell.i, bestCell.j],
+          note: `Allocation: ${String.fromCharCode(65 + bestCell.i)}→${bestCell.j + 1} (${qty})`
+        });
+      } else {
+        break;
+      }
+    }
+
+    // Phase 2: Vérification dégénérescence
+    const needed = m + n - 1;
+    const current = allocationHistory.size;
+    
+    if (current >= needed) break;
+    
+    // Trouver la meilleure case pour epsilon
+    let bestEpsilon = { i: -1, j: -1, cost: Infinity };
     for (let i = 0; i < m; i++) {
       for (let j = 0; j < n; j++) {
-        if (allocations[i][j] === null && costs[i][j] < best.cost) {
-          best = { i, j, cost: costs[i][j] };
+        if (allocations[i][j] === null && costs[i][j] < bestEpsilon.cost) {
+          bestEpsilon = { i, j, cost: costs[i][j] };
         }
       }
     }
-    allocations[best.i][best.j] = 0; // epsilon
-    currentAllocs++;
+
+    if (bestEpsilon.i !== -1) {
+      allocations[bestEpsilon.i][bestEpsilon.j] = 0;
+      allocationHistory.add(`${bestEpsilon.i},${bestEpsilon.j}`);
+      steps.push({
+        allocations: clone2D(allocations),
+        offer: [...offer],
+        demand: [...demand],
+        note: `ε-allocation: ${String.fromCharCode(65 + bestEpsilon.i)}${bestEpsilon.j + 1}`
+      });
+    } else if (!madeAllocation) {
+      break; // Aucune allocation possible
+    }
   }
 
-  steps.push({
+  // Solution finale
+  const finalAllocations = allocationHistory.size;
+  const neededAllocations = m + n - 1;
+  
+  const finalStep = {
     allocations: clone2D(allocations),
     offer: [...offer],
     demand: [...demand],
-    chosen: null,
-    penalties: null,
-    note: "Fin de l'algorithme — solution de base obtenue",
-  });
+    note: finalAllocations >= neededAllocations
+      ? "Solution optimale"
+      : `Solution dégénérée (${finalAllocations}/${neededAllocations})`,
+    z: computeZ(costs, allocations)
+  };
 
-  return steps;
+  return [...steps, finalStep];
+}
+
+// Fonctions helper
+function getTwoMin(arr) {
+  const filtered = arr.filter(x => x !== null && isFinite(x));
+  if (filtered.length < 2) return [filtered[0] || Infinity, Infinity];
+  const sorted = [...filtered].sort((a, b) => a - b);
+  return [sorted[0], sorted[1]];
 }
 
 function computeZ(costs, alloc) {
   let z = 0;
   for (let i = 0; i < costs.length; i++) {
     for (let j = 0; j < costs[0].length; j++) {
-      if (alloc[i][j] != null) z += costs[i][j] * alloc[i][j];
+      if (alloc[i][j] > 0) z += costs[i][j] * alloc[i][j];
     }
   }
   return z;
 }
 
+function clone2D(arr) {
+  return arr.map(row => [...row]);
+}
 /******************************
  * UI component
  *****************************/
@@ -364,7 +420,10 @@ export default function BalasHammerApp() {
       const maxCol = step.penalties ? Math.max(...step.penalties.colPen) : -1;
       
       const activeRows = step.offer.map((o, i) => o > 0 ? i : null).filter(i => i !== null);
-      const activeCols = step.demand.map((d, j) => d > 0 ? j : null).filter(j => j !== null);
+       const activeCols = step.demand.map((d, j) => d > 0 ? j : null).filter(j => j !== null);
+     const allRows = [...Array(rows).keys()]; // [0, 1, 2, 3]
+const allCols = [...Array(cols).keys()]; // [0, 1, 2, 3, 4, 5]
+
 
       return (
         <div key={k} className="bh-step">
@@ -373,142 +432,156 @@ export default function BalasHammerApp() {
           </h3>
 
           <div className="bh-step-container">
-            {/* Premier tableau : Matrice avec différences et allocations */}
-            <div className="bh-table-container">
-              <h4 style={{ textAlign: "center", marginBottom: "0.5rem" }}>
-                Matrice des différences et allocations
-              </h4>
-              <table className="bh-matrix-table">
-                <thead>
-                  <tr>
-                    <th className="bh-header-cell"></th>
-                    {activeCols.map(j => (
-                      <th key={`h1-${j}`} className="bh-header-cell">{j + 1}</th>
-                    ))}
-                    <th className="bh-header-cell">Diff. ligne</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activeRows.map(i => {
-                    const rowPen = step.penalties?.rowPen[i];
-                    return (
-                      <tr key={`r1-${i}`}>
-                        <td className="bh-header-cell">{String.fromCharCode(65 + i)}</td>
-                        {activeCols.map(j => {
-                          const alloc = step.allocations[i][j];
-                          return (
-                            <td key={`c1-${j}`}>
-                              {costs[i][j]}
-                              {alloc != null && (
-                                <span className="bh-allocation">{alloc}</span>
-                              )}
-                            </td>
-                          );
-                        })}
-                        <td className={`bh-penalty ${rowPen === maxRow ? "bh-max-penalty" : ""}`}>
-                          {rowPen === maxRow ? (
-                            <strong>{rowPen} (max)</strong>
-                          ) : rowPen}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  <tr>
-                    <td className="bh-header-cell">Diff. colonne</td>
-                    {activeCols.map(j => {
-                      const colPen = step.penalties?.colPen[j];
-                      return (
-                        <td key={`p1-${j}`} className={`bh-penalty ${colPen === maxCol ? "bh-max-penalty" : ""}`}>
-                          {colPen === maxCol ? (
-                            <strong>{colPen} (max)</strong>
-                          ) : colPen}
-                        </td>
-                      );
-                    })}
-                    <td></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+           {/* Premier tableau : Matrice des différences et allocations */}
+<div className="bh-table-container">
+  <h4 style={{ textAlign: "center", marginBottom: "0.5rem" }}>
+    Matrice des différences et allocations
+  </h4>
+  <table className="bh-matrix-table">
+    <thead>
+      <tr>
+        <th className="bh-header-cell"></th>
+        {Array.from({ length: cols }, (_, j) => (
+          <th key={`h1-${j}`} className="bh-header-cell">{j + 1}</th>
+        ))}
+        <th className="bh-header-cell">  </th>
+      </tr>
+    </thead>
+    <tbody>
+      {Array.from({ length: rows }, (_, i) => {
+        const rowPen = step.penalties?.rowPen?.[i];
 
-             {/* Deuxième tableau modifié : Matrice complète avec allocations et mises à jour */}
-              <div className="bh-table-container">
-                <h4 style={{ textAlign: "center", marginBottom: "0.5rem" }}>
-                  Matrice avec allocations et mises à jour
-                </h4>
-                <table className="bh-matrix-table">
-                  <thead>
-                    <tr>
-                      <th className="bh-header-cell"></th>
-                      {activeCols.map(j => (
-                        <th key={`h2-${j}`} className="bh-header-cell">{j + 1}</th>
-                      ))}
-                      <th className="bh-header-cell">Offre Orig.</th>
-                      <th className="bh-header-cell">Nouv. Offre</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activeRows.map(i => {
-                      const isChosenRow = step.chosen && step.chosen[0] === i;
-                      return (
-                        <tr key={`r2-${i}`}>
-                          <td className="bh-header-cell">{String.fromCharCode(65 + i)}</td>
-                          {activeCols.map(j => {
-                            const isChosen = isChosenRow && step.chosen[1] === j;
-                            const alloc = step.allocations[i][j];
-                            const isMin = isChosen && (
-                              step.penalties?.rowPen[i] === maxRow || 
-                              step.penalties?.colPen[j] === maxCol
-                            );
-                            
-                            return (
-                              <td 
-                                key={`c2-${j}`} 
-                                className={isChosen ? "bh-chosen-cell" : ""}
-                              >
-                                <div style={{ position: "relative" }}>
-                                  {isMin ? (
-                                    <strong style={{ color: "#006600" }}>{costs[i][j]} (min)</strong>
-                                  ) : costs[i][j]}
-                                  {alloc != null && (
-                                    <span className="bh-allocation">{alloc}</span>
-                                  )}
-                                </div>
-                              </td>
-                            );
-                          })}
-                          <td className="bh-offer-cell">{offerOrig[i]}</td>
-                          <td className="bh-offer-cell">
-                            {step.offer[i]}
-                            <span style={{ color: "#888", marginLeft: "4px" }}>
-                              (-{offerOrig[i] - step.offer[i]})
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    <tr>
-                      <td className="bh-header-cell">Demande Orig.</td>
-                      {activeCols.map(j => (
-                        <td key={`d2-${j}`} className="bh-demand-cell">{demandOrig[j]}</td>
-                      ))}
-                      <td colSpan="2"></td>
-                    </tr>
-                    <tr>
-                      <td className="bh-header-cell">Nouv. Demande</td>
-                      {activeCols.map(j => (
-                        <td key={`nd2-${j}`} className="bh-demand-cell">
-                          {step.demand[j]}
-                          <span style={{ color: "#888", marginLeft: "4px" }}>
-                            (-{demandOrig[j] - step.demand[j]})
-                          </span>
-                        </td>
-                      ))}
-                      <td colSpan="2"></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+        return (
+          <tr key={`r1-${i}`}>
+            <td className="bh-header-cell">{String.fromCharCode(65 + i)}</td>
+            {Array.from({ length: cols }, (_, j) => {
+              const colPen = step.penalties?.colPen?.[j];
+              const isRowActive = rowPen !== -1;
+              const isColActive = colPen !== -1;
+
+              const alloc = step.allocations[i][j];
+              const isChosen = step.chosen?.[0] === i && step.chosen?.[1] === j;
+
+              // cellule active = ni ligne ni colonne saturée
+              const isActive = isRowActive && isColActive;
+
+              return (
+                <td
+                  key={`c1-${j}`}
+                  className={isActive && isChosen ? "cell-red" : ""}
+                >
+                  {isActive ? (
+                    <>
+                      <span>{costs[i][j]}</span>
+                      {alloc != null && (
+                        <div className="bh-allocation">{alloc}</div>
+                      )}
+                    </>
+                  ) : null}
+                </td>
+              );
+            })}
+           <td className="diff-blue">
+  {rowPen === -1 ? (
+    ""
+  ) : rowPen === maxRow ? (
+    <span style={{ color: "red" }}>{rowPen}</span>  // nombre en rouge si max
+  ) : (
+    rowPen  // sinon nombre bleu (via la classe diff-blue)
+  )}
+</td>
+
+          </tr>
+        );
+      })}
+      <tr>
+        <td className="bh-header-cell">  </td>
+        {Array.from({ length: cols }, (_, j) => {
+          const colPen = step.penalties?.colPen?.[j];
+          return (
+            <td key={`p1-${j}`} className="diff-blue">
+  {colPen === -1 ? (
+    ""
+  ) : colPen === maxCol ? (
+    <span style={{ color: "red" }}>{colPen}</span>  // nombre en rouge si max
+  ) : (
+    colPen
+  )}
+</td>
+
+          );
+        })}
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+          {/* Deuxième tableau : offres et demandes initiales et mises à jour cumulées */}
+<div className="bh-table-container">
+  <h4 style={{ textAlign: "center", marginBottom: "0.5rem" }}>
+    Matrice avec allocations progressives
+  </h4>
+  <table className="bh-matrix-table">
+    <thead>
+      <tr>
+        <th className="bh-header-cell"></th>
+        {Array.from({ length: cols }, (_, j) => (
+          <th key={`h2-${j}`} className="bh-header-cell">{j + 1}</th>
+        ))}
+        <th className="bh-header-cell">Offre Actuelle</th>
+      </tr>
+    </thead>
+    <tbody>
+      {Array.from({ length: rows }, (_, i) => (
+        <tr key={`r2-${i}`}>
+          <td className="bh-header-cell">{String.fromCharCode(65 + i)}</td>
+
+          {Array.from({ length: cols }, (_, j) => {
+            // Trouver la première étape (jusqu'à k) où la cellule (i,j) a été choisie
+            const matchedStep = steps
+              .slice(0, k + 1)
+              .find((s) => s.chosen?.[0] === i && s.chosen?.[1] === j);
+
+            if (!matchedStep) {
+              return <td key={`c2-${j}`}></td>;
+            }
+
+            const cost = costs[i][j];
+            const alloc = matchedStep.allocations[i][j];
+
+            return (
+              <td key={`c2-${j}`}>
+                <div>
+                  {cost}
+                  {alloc !== null && <div className="bh-allocation">{alloc}</div>}
+                </div>
+              </td>
+            );
+          })}
+
+
+          {/* Offre actuelle à l'étape k */}
+          <td className="bh-offer-cell">{steps[k].offer[i]}</td>
+        </tr>
+      ))}
+
+      {/* Ligne Demande Orig. */}
+    
+      {/* Ligne Demande actuelle (mise à jour cumulée à l'étape k) */}
+      <tr>
+        <td className="bh-header-cell"> </td>
+        {Array.from({ length: cols }, (_, j) => (
+          <td key={`nd2-${j}`} className="bh-demand-cell">{steps[k].demand[j]}</td>
+        ))}
+        <td colSpan="2"></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
             </div>
 
           {/* Note et Z final */}
@@ -530,7 +603,7 @@ export default function BalasHammerApp() {
             </div>
           )}
         </div>
-      );
+      ); 
     })}
   </div>
 )}
