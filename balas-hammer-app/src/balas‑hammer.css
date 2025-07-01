@@ -304,4 +304,37 @@
   flex-direction: column; /* obligatoire pour empiler */
   gap: 2rem; /* alternative à margin */
 }
+.bh-delta-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  background-color: white;
+  box-shadow: 0 0 4px rgba(0,0,0,0.1);
+}
+
+.bh-delta-table th,
+.bh-delta-table td {
+  border: 1px solid #ccc;
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.bh-delta-table th {
+  background-color: #f5f5f5;
+  color: #333;
+  font-weight: bold;
+}
+
+.bh-delta-table tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+.bh-delta-table td {
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.bh-delta-table td:nth-child(4) {
+  font-weight: bold;
+}
 

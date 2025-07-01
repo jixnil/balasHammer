@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { useState } from "react";
 import html2canvas from "html2canvas";
 import "./balas‑hammer.css";
@@ -14,6 +15,8 @@ import jsPDF from "jspdf";
  *
  * Gestion de la dégénérescence si #allocations < m+n‑1, on ajoute des 0 (ε) dans les cases
  *    de coût minimal non encore allouées pour atteindre m+n‑1 allocations.
+ * 
+ * 6. Algorithme de stepping stone pour trouver la valeur minimal de Z.
  */
 
 /******************************
@@ -25,7 +28,7 @@ function clone2D(arr) {
 
 // function getTwoMin(arr) {
 //   const sorted = [...arr].sort((a, b) => a - b);
-//   return [sorted[0], sorted[1] ?? sorted[0]];
+//   return [sorted[0], sorted[1] ?? sorted[0]] ;
 // }
 
 /**
@@ -36,6 +39,171 @@ function clone2D(arr) {
  *    • calcul sûr des pénalités quand il ne reste qu’un seul coût actif
  *    • copie défensive des tableaux d’offre / demande
  */
+function steppingStoneOptimize(allocations, costs, offer, demand) {
+  const m = allocations.length;
+  const n = allocations[0].length;
+  const steps = [];
+  let improved = true;
+
+  console.log("Début Stepping Stone");
+
+  while (improved) {
+    improved = false;
+    let bestDelta = 0;
+    let bestPath = null;
+    let bestCell = null;
+    const allDeltas = [];
+
+    console.log("Recherche de cycles pour chaque cellule non allouée...");
+
+    for (let i = 0; i < m; i++) {
+      for (let j = 0; j < n; j++) {
+        if (allocations[i][j] != null) {
+          // Cellule déjà allouée
+          continue;
+        }
+
+        const path = findClosedLoop(i, j, allocations);
+        if (!path) {
+          console.log(`  Pas de cycle fermé pour cellule (${i}, ${j})`);
+          continue;
+        }
+
+        let delta = 0;
+        const formula = [];
+
+        for (let k = 0; k < path.length; k++) {
+          const [pi, pj] = path[k];
+          const cost = costs[pi][pj];
+          const sign = k % 2 === 0 ? "+" : "-";
+          formula.push(`${sign}${cost}`);
+          delta += (k % 2 === 0 ? 1 : -1) * cost;
+        }
+
+        console.log(`  Cycle trouvé pour cellule (${i}, ${j}) avec Δ = ${delta}`);
+        console.log(`    Formule: δ(${String.fromCharCode(65 + i)}, ${j + 1}) = ${formula.join(" ")} = ${delta}`);
+
+        allDeltas.push({
+          cell: [i, j],
+          path,
+          delta,
+          formula: `δ(${String.fromCharCode(65 + i)}, ${j + 1}) = ` + formula.join(" ") + ` = ${delta}`
+        });
+
+        if (delta < bestDelta) {
+          console.log(`  Nouvelle meilleure amélioration: Δ = ${delta} sur cellule (${i}, ${j})`);
+          bestDelta = delta;
+          bestPath = path;
+          bestCell = [i, j];
+          improved = true;
+        }
+      }
+    }
+
+    if (improved && bestPath) {
+      console.log(`Application de l'amélioration Δ = ${bestDelta} via cellule (${String.fromCharCode(65 + bestCell[0])}, ${bestCell[1] + 1})`);
+
+      let minQty = Infinity;
+      for (let k = 1; k < bestPath.length; k += 2) {
+        const [i, j] = bestPath[k];
+        if (allocations[i][j] !== "ε") {
+          minQty = Math.min(minQty, allocations[i][j]);
+        }
+      }
+      console.log(`  Quantité minimale à ajuster sur le chemin: ${minQty}`);
+
+      for (let k = 0; k < bestPath.length; k++) {
+        const [i, j] = bestPath[k];
+        if (k % 2 === 0) {
+          allocations[i][j] = (allocations[i][j] ?? 0) + minQty;
+        } else {
+          if (allocations[i][j] !== "ε") {
+            allocations[i][j] -= minQty;
+            if (allocations[i][j] === 0) allocations[i][j] = null;
+          }
+        }
+      }
+
+      steps.push({
+        allocations: allocations.map(row => [...row]),
+        offer: [...offer],
+        demand: [...demand],
+        note: `Amélioration Stepping Stone avec Δ = ${bestDelta} via cellule (${String.fromCharCode(65 + bestCell[0])}, ${bestCell[1] + 1})`,
+        deltas: allDeltas
+      });
+    } else {
+      console.log("Aucune amélioration possible détectée, fin du Stepping Stone.");
+    }
+  }
+
+  console.log("Fin Stepping Stone");
+  return steps;
+}
+export function findClosedLoop(startI, startJ, allocations) {
+  const m = allocations.length;
+  const n = allocations[0].length;
+
+  const path = [[startI, startJ]];
+  const visited = new Set();
+
+  function dfs(i, j, isRow, depth) {
+  const key = `${i},${j},${isRow}`;
+  console.log(`DFS: Profondeur ${depth}, position (${i},${j}), mode ${isRow ? 'ligne' : 'colonne'}`);
+
+  if (visited.has(key)) {
+    console.log(`  -> Déjà visité (${key}), retour en arrière`);
+    return false;
+  }
+
+  // Retour au point de départ (cycle fermé), si profondeur >=4
+  if (depth >= 4 && i === startI && j === startJ) {
+    console.log(`  -> Cycle fermé trouvé à (${i},${j}) avec profondeur ${depth}`);
+    return true;
+  }
+
+  visited.add(key);
+
+  if (isRow) {
+    for (let jj = 0; jj < n; jj++) {
+      if (jj === j) continue;
+      // autoriser retour au départ même si allocation nulle
+      if ((allocations[i][jj] > 0) || (i === startI && jj === startJ)) {
+        console.log(`  Exploration vers (${i},${jj}) en colonne`);
+        path.push([i, jj]);
+        if (dfs(i, jj, false, depth + 1)) return true;
+        path.pop();
+        console.log(`  Retour arrière depuis (${i},${jj}) en colonne`);
+      }
+    }
+  } else {
+    for (let ii = 0; ii < m; ii++) {
+      if (ii === i) continue;
+      if ((allocations[ii][j] > 0) || (ii === startI && j === startJ)) {
+        console.log(`  Exploration vers (${ii},${j}) en ligne`);
+        path.push([ii, j]);
+        if (dfs(ii, j, true, depth + 1)) return true;
+        path.pop();
+        console.log(`  Retour arrière depuis (${ii},${j}) en ligne`);
+      }
+    }
+  }
+
+  visited.delete(key);
+  console.log(`  Fin exploration position (${i},${j}), suppression de ${key} des visités`);
+  return false;
+}
+
+
+  console.log(`Début recherche cycle à partir de (${startI},${startJ})`);
+  if (dfs(startI, startJ, true, 1)) {
+    console.log(`Cycle trouvé: ${JSON.stringify(path)}`);
+    return [...path];
+  }
+  console.log(`Aucun cycle trouvé à partir de (${startI},${startJ})`);
+  return null;
+}
+
+
 function balasHammer(costs, offerOrig, demandOrig) {
   const m = costs.length;
   const n = costs[0].length;
@@ -115,18 +283,25 @@ function balasHammer(costs, offerOrig, demandOrig) {
           iChosen = i;
         }
       }
-    }
+    } 
 
     // 3. Allocation sûre et dans les bornes
-    if (iChosen === -1 || jChosen === -1) break; // sécurité
+   // 3. Allocation sûre et dans les bornes
+if (iChosen === -1 || jChosen === -1) break;
 
-    const qty = Math.min(offer[iChosen], demand[jChosen]);
-    if (qty <= 0) break; // sécurité contre boucle infinie
+if (allocations[iChosen][jChosen] != null) {
+  console.warn(`⚠️ Allocation multiple détectée sur (${iChosen}, ${jChosen})`);
+  break; // ou continue
+}
 
-    allocations[iChosen][jChosen] = (allocations[iChosen][jChosen] ?? 0) + qty;
+const qty = Math.min(offer[iChosen], demand[jChosen]);
+if (qty <= 0) break;
 
-    offer[iChosen] -= qty;
-    demand[jChosen] -= qty;
+allocations[iChosen][jChosen] = qty;
+
+offer[iChosen] -= qty;
+demand[jChosen] -= qty;
+
 
     // 4. Sauvegarde pour l’interface
     steps.push({
@@ -163,6 +338,14 @@ function balasHammer(costs, offerOrig, demandOrig) {
     demand     : [...demand],
     note       : "Fin de l'algorithme — solution de base obtenue"
   });
+for (let i = 0; i < m; i++) {
+  for (let j = 0; j < n; j++) {
+    const val = allocations[i][j];
+    if (typeof val === "number" && val > Math.min(offerOrig[i], demandOrig[j])) {
+      console.warn(`⚠️ Suspicion de cumul trop grand en (${i}, ${j}) : ${val}`);
+    }
+  }
+}
 
   return steps;
 }
@@ -219,11 +402,14 @@ export default function BalasHammerApp() {
   };
 const [savedCosts, setSavedCosts] = useState(null);
 
- const handleRun = () => {
-  // fige la matrice utilisée pour ce run
-  setSavedCosts(costs.map(row => [...row]));   // ←  deep‑copy
-  const s = balasHammer(costs, offer, demand); // ←  calcul avec ces coûts
-  setSteps(s);
+const handleRun = () => {
+  setSavedCosts(costs.map(row => [...row]));
+  const initialSteps = balasHammer(costs, offer, demand);
+
+  const finalAlloc = initialSteps.at(-1).allocations.map(row => [...row]);
+  const steppingSteps = steppingStoneOptimize(finalAlloc, costs, offer, demand);
+
+  setSteps([...initialSteps, ...steppingSteps]);
 };
 
 
@@ -255,12 +441,15 @@ const [savedCosts, setSavedCosts] = useState(null);
           <input
             type="number"
             value={rows}
-            onChange={(e) => {
-              const r = Number(e.target.value);
-              setRows(r);
-              setCosts(Array.from({ length: r }, () => Array(cols).fill(0)));
-              setOffer(Array(r).fill(0));
-            }}
+           onChange={(e) => {
+  const r = Number(e.target.value);
+  setRows(r);
+  setCosts(Array.from({ length: r }, () => Array(cols).fill(0)));
+  setOffer(Array(r).fill(0));
+  setSteps([]);       // ← pour éviter affichage d'étapes invalides
+  setSavedCosts(null);
+}}
+
             className="bh-input"
           />
         </label>
@@ -271,13 +460,30 @@ const [savedCosts, setSavedCosts] = useState(null);
             type="number"
             value={cols}
             onChange={(e) => {
-              const c = Number(e.target.value);
-              setCols(c);
-              setCosts((prev) =>
-                prev.map((row) => [...row, ...Array(c - row.length).fill(0)])
-              );
-              setDemand(Array(c).fill(0));
-            }}
+  let c = Number(e.target.value);
+  if (c < 1) c = 1;  // minimum 1 colonne
+
+  setCols(c);
+
+  setCosts(prev =>
+    Array.from({ length: rows }, (_, i) => {
+      const oldRow = prev[i] || [];
+      if (c > oldRow.length) {
+        // Ajout de colonnes avec des zéros
+        return [...oldRow, ...Array(c - oldRow.length).fill(0)];
+      } else {
+        // Tronquer les colonnes en trop
+        return oldRow.slice(0, c);
+      }
+    })
+  );
+
+  setDemand(Array(c).fill(0));
+  setSteps([]);
+  setSavedCosts(null);
+}}
+
+
             className="bh-input"
           />
         </label>
@@ -305,7 +511,7 @@ const [savedCosts, setSavedCosts] = useState(null);
                   <td key={j}>
                     <input
                       type="number"
-                      value={(savedCosts ?? costs)[i][j]
+                      value={costs[i][j] ?? 0
 }
                       onChange={(e) => handleCostChange(i, j, e.target.value)}
                       className="bh-input"
@@ -429,7 +635,7 @@ const [savedCosts, setSavedCosts] = useState(null);
       return (
         <div key={k} className="bh-step">
           <h3 style={{ textAlign: "center", fontWeight: 700, marginBottom: "1.5rem" }}>
-            Étape {k + 1} {activeRows.length === 1 || activeCols.length === 1 ? "(Finale)" : ""}
+            Étape {k + 1} {activeRows.length === 1 || activeCols.length === 1 }
           </h3>
 
           <div className="bh-step-container">
@@ -518,8 +724,6 @@ const [savedCosts, setSavedCosts] = useState(null);
     </tbody>
   </table>
 </div>
-
-
           {/* Deuxième tableau : coût et min(Offre, Demande) au moment de l'allocation */}
 <div className="bh-table-container">
   <h4 style={{ textAlign: "center", marginBottom: "0.5rem" }}>
@@ -584,11 +788,8 @@ const [savedCosts, setSavedCosts] = useState(null);
     </tbody>
   </table>
 </div>
-
-
-
-
             </div>
+            
 
           {/* Note et Z final */}
           <p style={{ textAlign: "center", fontStyle: "italic", margin: "1rem 0" }}>
@@ -611,8 +812,38 @@ const [savedCosts, setSavedCosts] = useState(null);
         </div>
       ); 
     })}
+    
   </div>
 )}
+{steps.deltas && steps.deltas.length > 0 && (
+  <div style={{ marginTop: "1rem" }}>
+    <h4 style={{ textAlign: "center" }}>Calculs des δ(x, y)</h4>
+    <table className="bh-delta-table">
+      <thead>
+        <tr>
+          <th>Cellule</th>
+          <th>Cycle fermé</th>
+          <th>Formule</th>
+          <th>Δ</th>
+        </tr>
+      </thead>
+      <tbody>
+        {steps.deltas.map(({ cell, path, formula, delta }, idx) => (
+          <tr key={idx}>
+            <td>({String.fromCharCode(65 + cell[0])}, {cell[1] + 1})</td>
+            <td>
+              {path.map(([i, j]) => `(${String.fromCharCode(65 + i)}, ${j + 1})`).join(" → ")}
+            </td>
+            <td>{formula}</td>
+            <td style={{ color: delta < 0 ? "red" : "black" }}>{delta}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+)}
+
+
           </div>
         </div>
       )}
