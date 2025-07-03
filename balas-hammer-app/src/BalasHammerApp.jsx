@@ -382,6 +382,7 @@ const defaultRows = 4;
 const defaultCols = 6;
 
 export default function BalasHammerApp() {
+  
   const [rows, setRows] = useState(defaultRows);
   const [cols, setCols] = useState(defaultCols);
   const [costs, setCosts] = useState(
@@ -634,6 +635,33 @@ const handleRun = () => {
 
       return (
         <div key={k} className="bh-step">
+            {steps.deltas && steps.deltas.length > 0 && (
+  <div style={{ marginTop: "1rem" }}>
+    <h4 style={{ textAlign: "center" }}>Calculs des δ(x, y)</h4>
+    <table className="bh-delta-table">
+      <thead>
+        <tr>
+          <th>Cellule</th>
+          <th>Cycle fermé</th>
+          <th>Formule</th>
+          <th>Δ</th>
+        </tr>
+      </thead>
+      <tbody>
+        {steps.deltas.map(({ cell, path, formula, delta }, idx) => (
+          <tr key={idx}>
+            <td>({String.fromCharCode(65 + cell[0])}, {cell[1] + 1})</td>
+            <td>
+              {path.map(([i, j]) => `(${String.fromCharCode(65 + i)}, ${j + 1})`).join(" → ")}
+            </td>
+            <td>{formula}</td>
+            <td style={{ color: delta < 0 ? "red" : "black" }}>{delta}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+)}
           <h3 style={{ textAlign: "center", fontWeight: 700, marginBottom: "1.5rem" }}>
             Étape {k + 1} {activeRows.length === 1 || activeCols.length === 1 }
           </h3>
@@ -815,33 +843,7 @@ const handleRun = () => {
     
   </div>
 )}
-{steps.deltas && steps.deltas.length > 0 && (
-  <div style={{ marginTop: "1rem" }}>
-    <h4 style={{ textAlign: "center" }}>Calculs des δ(x, y)</h4>
-    <table className="bh-delta-table">
-      <thead>
-        <tr>
-          <th>Cellule</th>
-          <th>Cycle fermé</th>
-          <th>Formule</th>
-          <th>Δ</th>
-        </tr>
-      </thead>
-      <tbody>
-        {steps.deltas.map(({ cell, path, formula, delta }, idx) => (
-          <tr key={idx}>
-            <td>({String.fromCharCode(65 + cell[0])}, {cell[1] + 1})</td>
-            <td>
-              {path.map(([i, j]) => `(${String.fromCharCode(65 + i)}, ${j + 1})`).join(" → ")}
-            </td>
-            <td>{formula}</td>
-            <td style={{ color: delta < 0 ? "red" : "black" }}>{delta}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-)}
+
 
 
           </div>
