@@ -155,3 +155,29 @@ export function solveBalasHammer(costs, offerOrig, demandOrig) {
 
   return steps;
 }
+export function calculateTotalCost(allocations, costs) {
+    let totalCost = 0;
+    const m = allocations.length;
+    const n = allocations[0].length;
+
+    for (let i = 0; i < m; i++) {
+        for (let j = 0; j < n; j++) {
+            const allocationValue = allocations[i][j];
+            const unitCost = costs[i][j];
+
+            // Only consider allocated cells (where allocationValue is a number and not 0 or "ε")
+            if (typeof allocationValue === 'number' && allocationValue > 0) {
+                totalCost += allocationValue * unitCost;
+            }
+            // If you want to include epsilon costs (which are usually 0 in transportation,
+            // but if they had a cost, you'd handle them here):
+            // else if (allocationValue === "ε" && unitCost > 0) {
+            //     // Decide how to handle epsilon if it carries a cost.
+            //     // Typically, epsilon allocations don't add to cost for the purpose of Z.
+            //     // If they are part of a degeneracy fix, their cost is implicitly 0.
+            // }
+        }
+    }
+    return totalCost;
+}
+

@@ -1,10 +1,10 @@
 // src/App.js
 import React, { useState } from "react";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
+// import html2canvas from "html2canvas";
+// import jsPDF from "jspdf";
 import "./balas-hammer.css";
 
-// Import UI components
+
 import MatrixInput from "./components/MatrixInput";
 import Controls from "./components/Controls";
 import GraphView from "./components/GraphView";
@@ -27,12 +27,12 @@ export default function App() {
   const [offer, setOffer] = useState(Array(defaultRows).fill(0));
   const [demand, setDemand] = useState(Array(defaultCols).fill(0));
   const [steps, setSteps] = useState([]);
-  const [savedCosts, setSavedCosts] = useState(null); // To keep original costs for Z calculation
+  const [savedCosts, setSavedCosts] = useState(null); 
 
   /** Handlers **/
   const handleDimensionsChange = (type, value) => {
     const numValue = Number(value);
-    setSteps([]); // Clear steps when dimensions change
+    setSteps([]); 
     setSavedCosts(null);
 
     if (type === 'rows') {
@@ -41,7 +41,7 @@ export default function App() {
       setOffer(Array(numValue).fill(0));
     } else if (type === 'cols') {
       let c = numValue;
-      if (c < 1) c = 1; // minimum 1 column
+      if (c < 1) c = 1; 
 
       setCols(c);
       setCosts(prev =>
@@ -72,42 +72,42 @@ export default function App() {
     setSteps([...initialSolutionSteps, ...optimizationSteps]);
   };
 
-  const exportPDF = async () => {
-    const element = document.getElementById("result-table");
-    if (!element) return;
-    const canvas = await html2canvas(element, { scale: 2 });
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a3" });
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfWidth = pdf.internal.pageSize.getWidth();
+//   const exportPDF = async () => {
+//     const element = document.getElementById("result-table");
+//     if (!element) return;
+//     const canvas = await html2canvas(element, { scale: 2 });
+//     const imgData = canvas.toDataURL("image/png");
+//     const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a3" });
+//     const imgProps = pdf.getImageProperties(imgData);
+//     const pdfWidth = pdf.internal.pageSize.getWidth();
 
-    const x = 10;
-    const y = 10;
-    const width = pdfWidth - 2 * x;
-    const height = (imgProps.height * width) / imgProps.width;
+//     const x = 10;
+//     const y = 10;
+//     const width = pdfWidth - 2 * x;
+//     const height = (imgProps.height * width) / imgProps.width;
 
-    if (height > pdf.internal.pageSize.getHeight() - 2 * y) {
-        let currentHeight = 0;
-        while (currentHeight < imgProps.height) {
-            if (currentHeight > 0) {
-                pdf.addPage();
-            }
-            const sliceHeight = Math.min(imgProps.height - currentHeight, pdf.internal.pageSize.getHeight() - 2 * y);
-            const sliceCanvas = document.createElement('canvas');
-            sliceCanvas.width = canvas.width;
-            sliceCanvas.height = sliceHeight * (canvas.width / imgProps.width);
-            const sliceCtx = sliceCanvas.getContext('2d');
-            sliceCtx.drawImage(canvas, 0, currentHeight * (canvas.width / imgProps.width), canvas.width, sliceHeight * (canvas.width / imgProps.width), 0, 0, sliceCanvas.width, sliceCanvas.height);
-            const sliceImgData = sliceCanvas.toDataURL("image/png");
-            pdf.addImage(sliceImgData, "PNG", x, y, width, sliceHeight * (width / imgProps.width));
-            currentHeight += sliceHeight;
-        }
-    } else {
-        pdf.addImage(imgData, "PNG", x, y, width, height);
-    }
+//     if (height > pdf.internal.pageSize.getHeight() - 2 * y) {
+//         let currentHeight = 0;
+//         while (currentHeight < imgProps.height) {
+//             if (currentHeight > 0) {
+//                 pdf.addPage();
+//             }
+//             const sliceHeight = Math.min(imgProps.height - currentHeight, pdf.internal.pageSize.getHeight() - 2 * y);
+//             const sliceCanvas = document.createElement('canvas');
+//             sliceCanvas.width = canvas.width;
+//             sliceCanvas.height = sliceHeight * (canvas.width / imgProps.width);
+//             const sliceCtx = sliceCanvas.getContext('2d');
+//             sliceCtx.drawImage(canvas, 0, currentHeight * (canvas.width / imgProps.width), canvas.width, sliceHeight * (canvas.width / imgProps.width), 0, 0, sliceCanvas.width, sliceCanvas.height);
+//             const sliceImgData = sliceCanvas.toDataURL("image/png");
+//             pdf.addImage(sliceImgData, "PNG", x, y, width, sliceHeight * (width / imgProps.width));
+//             currentHeight += sliceHeight;
+//         }
+//     } else {
+//         pdf.addImage(imgData, "PNG", x, y, width, height);
+//     }
 
-    pdf.save("balas_hammer_solution.pdf");
-  };
+//     pdf.save("balas_hammer_solution.pdf");
+//   };
 
   return (
     <div className="bh-wrapper">
@@ -155,7 +155,7 @@ export default function App() {
       {/* Control Buttons */}
       <Controls
         onRun={handleRun}
-        onExportPDF={exportPDF}
+        // onExportPDF={exportPDF}
         showExportButton={steps.length > 0}
       />
 
@@ -178,18 +178,9 @@ export default function App() {
           {/* Le GraphView est toujours à l'intérieur du conteneur flex */}
           {/* mais avec des marges pour le pousser en bas et à droite */}
           <div style={{
-            // Nous utilisons 'flex-basis' pour donner une largeur minimale au graphe,
-            // et 'margin-left: auto' pour le pousser à droite si l'espace est suffisant.
-            // 'margin-top: auto' le poussera vers le bas.
             marginLeft: "auto", // Pousse le graphe à droite sur sa ligne
             marginTop: "auto",  // Pousse le graphe vers le bas sur sa colonne
-            // Si vous voulez que le graphe soit toujours sur une nouvelle ligne en bas à droite,
-            // vous pouvez lui donner une grande marge gauche pour qu'il soit forcé de descendre.
-            // Ou utiliser flex-grow: 0 et flex-shrink: 0 si vous voulez qu'il garde sa taille.
-            // Nous gardons la largeur définie par le SVG (width="400")
-            // minWidth: "400px", // Optionnel: Assure que le graphe ne rétrécit pas trop
-            // flexShrink: 0, // Optionnel: Empêche le graphe de rétrécir
-            // flexGrow: 0 // Optionnel: Empêche le graphe de s'étirer
+       
           }}>
             <GraphView
               finalAllocations={steps.at(-1)?.allocations}

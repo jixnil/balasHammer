@@ -127,6 +127,9 @@ export function findClosedLoop(startI, startJ, allocations) {
 
     return null; // No closed loop found
 }
+// src/utils/steppingStone.js (or steppingStoneOptimizer.js)
+
+// ... (findClosedLoop function remains the same) ...
 
 /**
  * Optimizes allocations using the Stepping Stone method.
@@ -144,6 +147,18 @@ export function optimizeSteppingStone(initialAllocations, costs, offer, demand) 
 
   // Create a mutable copy of allocations for optimization
   let currentAllocations = initialAllocations.map(row => [...row]);
+  let iterationCount = 0; // To label stepping stone iterations
+
+  // Add the initial state of Stepping Stone (which is the final Balas-Hammer allocation)
+  steps.push({
+      allocations: currentAllocations.map(row => [...row]),
+      offer: [...offer],
+      demand: [...demand],
+      note: "Début de l'optimisation Stepping Stone (solution initiale de Balas-Hammer)",
+      type: "SteppingStoneInitial" // Mark this for specific display if needed
+  });
+
+
   let improved = true; // Flag to continue iterations as long as improvement is found
 
   while (improved) {
@@ -184,7 +199,7 @@ export function optimizeSteppingStone(initialAllocations, costs, offer, demand) 
         // Store delta calculation for UI display
         allDeltas.push({
           cell: [i, j],
-          path,
+          path, // Include the path for each delta calculation
           delta,
           formula: `δ(${String.fromCharCode(65 + i)}, ${j + 1}) = ` + formulaParts.join(" ") + ` = ${delta}`
         });
@@ -201,32 +216,18 @@ export function optimizeSteppingStone(initialAllocations, costs, offer, demand) 
 
     // If an improvement was found in this iteration, apply it
     if (improved && bestPath) {
+      iterationCount++; // Increment iteration count for labeling steps
       let minQty = Infinity;
       // Find the minimum quantity among cells with a '-' sign in the optimal path
-      // These are the cells from which we will subtract the quantity.
       for (let k = 1; k < bestPath.length; k += 2) { // Iterate over indices 1, 3, 5... (cells with '-' sign)
         const [i, j] = bestPath[k];
-        // Only consider numeric allocations for minimum quantity determination.
-        // 'ε' (epsilon) is treated as a zero for path calculation but not for minimum quantity to transfer,
-        // unless it's the *only* option. However, for a proper Stepping Stone, a numeric allocation should be present.
         if (typeof currentAllocations[i][j] === 'number') {
           minQty = Math.min(minQty, currentAllocations[i][j]);
         }
       }
 
-      // If no positive quantity found to shift (e.g., all negative path cells were 'ε'),
-      // or if for some reason minQty remains Infinity (no valid numeric cells on '-' path).
-      // This implies the cycle, while mathematically valid for delta calculation,
-      // does not allow a practical quantity transfer, so we break this iteration.
       if (minQty === Infinity || minQty <= 0) {
-          // This can happen if all basic cells on the negative path are 'ε' or 0.
-          // In such cases, this specific cycle cannot reduce cost by transferring quantity.
-          // We break this *loop iteration* and will implicitly re-evaluate if there are other paths.
-          // To be very strict, if a cycle is found but yields no transferable quantity,
-          // it might indicate an issue with the problem setup or degeneracy handling.
-          // For now, we'll break from the optimization process for this specific path.
-          // A more advanced solver might try to find another path or handle degeneracy more explicitly.
-          break;
+          break; // Exit loop if no transferable quantity, indicating no further practical improvement via this process.
       }
 
       // Create a new allocation matrix for the next step's state
@@ -237,20 +238,17 @@ export function optimizeSteppingStone(initialAllocations, costs, offer, demand) 
         const [i, j] = bestPath[k];
         if (k % 2 === 0) { // Cells with '+' sign: add minQty
           if (nextAllocations[i][j] === null || nextAllocations[i][j] === "ε") {
-              // If it was null or epsilon, it now becomes a real allocation.
               nextAllocations[i][j] = minQty;
           } else {
               nextAllocations[i][j] += minQty;
           }
         } else { // Cells with '-' sign: subtract minQty
           if (nextAllocations[i][j] === "ε") {
-            // If it was 'ε' and we subtract, it means it's leaving the basis, so it becomes null.
-            nextAllocations[i][j] = null;
+            nextAllocations[i][j] = null; // 'ε' leaves the basis
           } else {
             nextAllocations[i][j] -= minQty;
             if (nextAllocations[i][j] === 0) {
-              // If quantity becomes zero, it leaves the basis and becomes null.
-              nextAllocations[i][j] = null;
+              nextAllocations[i][j] = null; // Numeric 0 leaves the basis
             }
           }
         }
@@ -260,24 +258,40 @@ export function optimizeSteppingStone(initialAllocations, costs, offer, demand) 
       // Record the step for UI display
       steps.push({
         allocations: currentAllocations.map(row => [...row]),
-        offer: [...offer], // Offer/demand remain unchanged during stepping stone
+        offer: [...offer],
         demand: [...demand],
-        note: `Amélioration Stepping Stone avec Δ = ${bestDelta} via cellule (${String.fromCharCode(65 + bestCell[0])}, ${bestCell[1] + 1}). Quantité transférée: ${minQty}`,
+        note: `Itération ${iterationCount} de Stepping Stone: Amélioration avec Δ = ${bestDelta} via (${String.fromCharCode(65 + bestCell[0])}, ${bestCell[1] + 1}). Quantité transférée: ${minQty}.`,
         deltas: allDeltas, // Include all deltas calculated in this iteration for display
-        minQtyApplied: minQty
+        minQtyApplied: minQty,
+        bestCell: bestCell, // The non-basic cell that initiated the best path
+        bestPath: bestPath, // The actual path of the best improvement
+        type: "SteppingStoneIteration" // Mark this for specific display
       });
     } else {
-      break; // No negative delta found, so the optimal solution is reached
+      break; // No negative delta found, so the optimal solution is reached or no practical path left
     }
   }
 
-  // Add a final step to indicate the end of optimization
-  steps.push({
-    allocations: currentAllocations.map(row => [...row]),
-    offer: [...offer],
-    demand: [...demand],
-    note: "Fin de l'optimisation Stepping Stone — solution optimale obtenue"
-  });
+  // Add a final step to indicate the end of optimization (if not already added as an iteration)
+  // Check if the last recorded step is already the optimal one
+  const lastStep = steps[steps.length - 1];
+  if (!lastStep || lastStep.type !== "SteppingStoneIteration") {
+    steps.push({
+      allocations: currentAllocations.map(row => [...row]),
+      offer: [...offer],
+      demand: [...demand],
+      note: "Fin de l'optimisation Stepping Stone — solution optimale obtenue",
+      type: "SteppingStoneFinal"
+    });
+  } else {
+      // If the last step was an iteration, just update its note if it's the final one
+      // eslint-disable-next-line no-undef
+      if (bestDelta >= 0) { // If no further improvement was found in the last check
+          lastStep.note = lastStep.note + " (Solution optimale atteinte).";
+          lastStep.type = "SteppingStoneFinal"; // Mark as final
+      }
+  }
+
 
   return steps;
 }

@@ -338,3 +338,69 @@
   font-weight: bold;
 }
 
+/* balas-hammer.css */
+
+/* ... (vos styles existants) ... */
+
+.delta-negative {
+  color: #c00; /* Red for negative deltas indicating improvement */
+  font-weight: bold;
+}
+
+.cell-red-border {
+  border: 2px solid red !important; /* Highlight the chosen non-basic cell */
+}
+
+.cell-path-plus {
+  background-color: #e6ffe6; /* Light green for + cells in path */
+}
+
+.cell-path-minus {
+  background-color: #ffe6e6; /* Light red for - cells in path */
+}
+/* src/components/style/balas-hammer.css */
+
+/* ... (vos styles existants) ... */
+
+/* Highlight for the chosen non-basic cell */
+.cell-red-border {
+  border: 2px solid #dc3545 !important; /* Red border */
+  box-shadow: 0 0 5px rgba(220, 53, 69, 0.5); /* Optional: a subtle glow */
+}
+
+/* Cells in the Stepping Stone path */
+.cell-path-plus {
+  background-color: #d4edda; /* Light green background for '+' cells */
+}
+
+.cell-path-minus {
+  background-color: #f8d7da; /* Light red background for '-' cells */
+  /* You can add more emphasis here for "minus" cells */
+  border: 1px dashed #dc3545; /* Optional: a dashed red border */
+}
+
+/* Style for delta values */
+.delta-negative {
+  color: #dc3545; /* Red color for negative deltas */
+  font-weight: bold;
+}
+
+/* Positioning cost and allocation within the cell */
+.bh-matrix-table td {
+  position: relative; /* Allow positioning of children */
+  padding: 5px; /* Adjust padding as needed */
+  text-align: center; /* Center content by default */
+}
+
+.bh-matrix-table td .cost-display {
+  position: absolute;
+  font-size: 0.8em;
+  color: #555;
+}
+
+.bh-matrix-table td .bh-allocation {
+  display: block; /* Ensure it takes its own line */
+  font-size: 1.2em;
+  font-weight: bold;
+
+}

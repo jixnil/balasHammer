@@ -96,12 +96,12 @@ export default function BalasHammerStepTable({ step, cols, rows, savedCosts, cos
                 <td className="bh-header-cell">{getRowChar(i)}</td>
                 {Array.from({ length: cols }, (_, j) => {
                   const alloc = step.allocations[i][j];
-                  const cost = (savedCosts ?? costs)[i][j];
+                  //const cost = (savedCosts ?? costs)[i][j];
                   return (
                   <td key={`c2-${j}`}>
                     {alloc != null && alloc !== 0 ? ( // This condition is fine for showing non-zero numbers and "ε"
                       <div>
-                        {cost}
+                        {/* {cost} */}
                         <div className="bh-allocation">
                           <strong>{alloc === "ε" ? "ε" : alloc}</strong>
                         </div>
