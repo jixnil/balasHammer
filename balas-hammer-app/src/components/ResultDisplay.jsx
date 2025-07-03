@@ -11,7 +11,7 @@ export default function ResultDisplay({ steps, cols, rows, savedCosts, costs }) 
   return (
     <div id="result-table" style={{ flex: "1 1 480px" }}>
       {steps.map((step, k) => {
-        const isSteppingStoneStep = step.deltas !== undefined; // Heuristic to identify stepping stone steps
+        const isSteppingStoneStep = step.deltas !== undefined; 
 
         return (
           <div key={k} className="bh-step">
@@ -19,8 +19,14 @@ export default function ResultDisplay({ steps, cols, rows, savedCosts, costs }) 
               Étape {k + 1}: {step.note}
             </h3>
 
-            {isSteppingStoneStep && <SteppingStoneDeltaTable deltas={step.deltas} />}
-
+            {isSteppingStoneStep && (
+  <SteppingStoneDeltaTable
+    step={step}
+    cols={cols}
+    rows={rows}
+    savedCosts={savedCosts}
+  />
+)}
             <BalasHammerStepTable
               step={step}
               cols={cols}

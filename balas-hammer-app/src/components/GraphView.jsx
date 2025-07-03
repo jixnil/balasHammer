@@ -1,10 +1,12 @@
-// src/components/GraphView.jsx
 import React from 'react';
-import { getRowChar } from './SharedUIHelpers'; // Import helper
+import { getRowChar } from './SharedUIHelpers';
 import "./style/balas‑hammer.css";
 
 export default function GraphView({ finalAllocations, rows, cols }) {
   if (!finalAllocations) return null;
+
+  const maxArcs = rows + cols - 1;
+  let arcCount = 0;
 
   return (
     <svg
@@ -30,17 +32,29 @@ export default function GraphView({ finalAllocations, rows, cols }) {
           </text>
         </g>
       ))}
-      {/* Connections (Liaisons) - Sans les numéros d'allocation */}
+
+      {/* Connexions (allocations), incluant epsilon "ε" pour dégénérescence */}
       {finalAllocations.map((row, i) =>
         row.map((alloc, j) => {
-          // Afficher la ligne si l'allocation est un nombre positif
-          // ou si c'est la chaîne "ε" (pour les cas de dégénérescence si vous voulez les montrer)
-          if ((typeof alloc === 'number' && alloc > 0) || alloc === "ε") {
+          if (arcCount >= maxArcs) return null; // Stop dès que le max est atteint
+
+          if (
+            (typeof alloc === 'number' && alloc > 0) ||
+            alloc === "ε"
+          ) {
+            arcCount++; // Compte cet arc
+
             return (
               <g key={`${i}-${j}`}>
-                <line x1={80} y1={i * 80 + 40} x2={320} y2={j * 80 + 40}
-                      stroke="#888" strokeWidth="2" />
-                {/* Suppression du bloc <text> qui affichait {alloc} */}
+                <line
+                  x1={80}
+                  y1={i * 80 + 40}
+                  x2={320}
+                  y2={j * 80 + 40}
+                  stroke={alloc === "ε" ? "#f00" : "#888"}
+                  strokeWidth={alloc === "ε" ? 3 : 2}
+                  strokeDasharray={alloc === "ε" ? "5,5" : "0"}
+                />
               </g>
             );
           }

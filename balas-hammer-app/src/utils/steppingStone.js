@@ -13,6 +13,7 @@
  * @param {Array<Array<number|string|null>>} allocations Current allocation matrix.
  * @returns {Array<Array<number>>|null} The path as an array of [row, col] pairs, or null if no loop found.
  */
+import { calculateTotalCost } from "./balasHammer.js";
 export function findClosedLoop(startI, startJ, allocations) {
     const m = allocations.length;
     const n = allocations[0].length;
@@ -140,54 +141,43 @@ export function findClosedLoop(startI, startJ, allocations) {
  * @param {Array<number>} demand The original demand quantities (not modified by stepping stone, but useful for reference).
  * @returns {Array<Object>} An array of steps, each describing an optimization iteration.
  */
+
 export function optimizeSteppingStone(initialAllocations, costs, offer, demand) {
   const m = initialAllocations.length;
   const n = initialAllocations[0].length;
   const steps = [];
-
-  // Create a mutable copy of allocations for optimization
   let currentAllocations = initialAllocations.map(row => [...row]);
-  let iterationCount = 0; // To label stepping stone iterations
+  let iterationCount = 0;
 
-  // Add the initial state of Stepping Stone (which is the final Balas-Hammer allocation)
   steps.push({
-      allocations: currentAllocations.map(row => [...row]),
-      offer: [...offer],
-      demand: [...demand],
-      note: "Début de l'optimisation Stepping Stone (solution initiale de Balas-Hammer)",
-      type: "SteppingStoneInitial" // Mark this for specific display if needed
+    allocations: currentAllocations.map(r => [...r]),
+    offer: [...offer],
+    demand: [...demand],
+    costs,
+    note: "Début de l'optimisation Stepping Stone (solution initiale de Balas‑Hammer)",
+    type: "SteppingStoneInitial",
+    previousCost: calculateTotalCost(currentAllocations, costs),
+    stepDelta: 0,
+    totalCost: calculateTotalCost(currentAllocations, costs)
   });
 
-
-  let improved = true; // Flag to continue iterations as long as improvement is found
-
+  let improved = true;
   while (improved) {
     improved = false;
-    let bestDelta = 0;
+    let bestDelta = Infinity; // ✅ Correct
     let bestPath = null;
     let bestCell = null;
-    const allDeltas = []; // To store all calculated deltas for the current iteration's display
+    const allDeltas = [];
 
-    // Iterate through all non-basic (unallocated) cells to find potential improvements
     for (let i = 0; i < m; i++) {
       for (let j = 0; j < n; j++) {
-        // Skip if the cell is already allocated (basic variable)
-        if (currentAllocations[i][j] !== null && currentAllocations[i][j] !== "ε") {
-          continue;
-        }
-
-        // Find a closed loop for the current non-basic cell
+        if (currentAllocations[i][j] !== null && currentAllocations[i][j] !== "ε") continue;
         const path = findClosedLoop(i, j, currentAllocations);
-
-        if (!path) {
-          continue; // No closed loop means no improvement possible from this cell
-        }
+        if (!path) continue;
 
         let delta = 0;
         const formulaParts = [];
 
-        // Calculate the improvement index (delta) for the path
-        // The path elements alternate signs: (+, -, +, -, ...)
         for (let k = 0; k < path.length; k++) {
           const [pi, pj] = path[k];
           const cost = costs[pi][pj];
@@ -196,102 +186,101 @@ export function optimizeSteppingStone(initialAllocations, costs, offer, demand) 
           delta += (k % 2 === 0 ? 1 : -1) * cost;
         }
 
-        // Store delta calculation for UI display
+        let gainMin = Infinity;
+        for (let k = 1; k < path.length; k += 2) {
+          const [pi, pj] = path[k];
+          const val = currentAllocations[pi][pj];
+          if (typeof val === "number" && val < gainMin) gainMin = val;
+        }
+
+        const gain = delta * gainMin;
+        const gainFormula = `gain(${String.fromCharCode(65 + i)}, ${j + 1}) = ${delta} × ${gainMin} = ${gain}`;
+
         allDeltas.push({
           cell: [i, j],
-          path, // Include the path for each delta calculation
+          path,
           delta,
-          formula: `δ(${String.fromCharCode(65 + i)}, ${j + 1}) = ` + formulaParts.join(" ") + ` = ${delta}`
+          formula: `δ(${String.fromCharCode(65 + i)}, ${j + 1}) = ${formulaParts.join(" ")} = ${delta}`,
+          gain,
+          gainFormula
         });
 
-        // If a negative delta is found, it means an improvement is possible
         if (delta < bestDelta) {
           bestDelta = delta;
           bestPath = path;
           bestCell = [i, j];
-          improved = true; // Set flag to true to continue iterating
+          improved = true;
         }
       }
     }
 
-    // If an improvement was found in this iteration, apply it
-    if (improved && bestPath) {
-      iterationCount++; // Increment iteration count for labeling steps
-      let minQty = Infinity;
-      // Find the minimum quantity among cells with a '-' sign in the optimal path
-      for (let k = 1; k < bestPath.length; k += 2) { // Iterate over indices 1, 3, 5... (cells with '-' sign)
-        const [i, j] = bestPath[k];
-        if (typeof currentAllocations[i][j] === 'number') {
-          minQty = Math.min(minQty, currentAllocations[i][j]);
-        }
-      }
-
-      if (minQty === Infinity || minQty <= 0) {
-          break; // Exit loop if no transferable quantity, indicating no further practical improvement via this process.
-      }
-
-      // Create a new allocation matrix for the next step's state
-      const nextAllocations = currentAllocations.map(row => [...row]);
-
-      // Adjust quantities along the best path
-      for (let k = 0; k < bestPath.length; k++) {
-        const [i, j] = bestPath[k];
-        if (k % 2 === 0) { // Cells with '+' sign: add minQty
-          if (nextAllocations[i][j] === null || nextAllocations[i][j] === "ε") {
-              nextAllocations[i][j] = minQty;
-          } else {
-              nextAllocations[i][j] += minQty;
-          }
-        } else { // Cells with '-' sign: subtract minQty
-          if (nextAllocations[i][j] === "ε") {
-            nextAllocations[i][j] = null; // 'ε' leaves the basis
-          } else {
-            nextAllocations[i][j] -= minQty;
-            if (nextAllocations[i][j] === 0) {
-              nextAllocations[i][j] = null; // Numeric 0 leaves the basis
-            }
-          }
-        }
-      }
-      currentAllocations = nextAllocations; // Update the allocations for the next iteration
-
-      // Record the step for UI display
+    // ✅ Enregistrement même si pas d'amélioration
+    if (!improved || !bestPath) {
       steps.push({
-        allocations: currentAllocations.map(row => [...row]),
+        allocations: currentAllocations.map(r => [...r]),
         offer: [...offer],
         demand: [...demand],
-        note: `Itération ${iterationCount} de Stepping Stone: Amélioration avec Δ = ${bestDelta} via (${String.fromCharCode(65 + bestCell[0])}, ${bestCell[1] + 1}). Quantité transférée: ${minQty}.`,
-        deltas: allDeltas, // Include all deltas calculated in this iteration for display
-        minQtyApplied: minQty,
-        bestCell: bestCell, // The non-basic cell that initiated the best path
-        bestPath: bestPath, // The actual path of the best improvement
-        type: "SteppingStoneIteration" // Mark this for specific display
+        costs,
+        note: "Aucune amélioration possible — solution optimale trouvée.",
+        type: "SteppingStoneFinal",
+        deltas: allDeltas,
+        previousCost: calculateTotalCost(currentAllocations, costs),
+        stepDelta: 0,
+        totalCost: calculateTotalCost(currentAllocations, costs),
+        isFinalSteppingStoneStep: true
       });
-    } else {
-      break; // No negative delta found, so the optimal solution is reached or no practical path left
+      break;
     }
-  }
 
-  // Add a final step to indicate the end of optimization (if not already added as an iteration)
-  // Check if the last recorded step is already the optimal one
-  const lastStep = steps[steps.length - 1];
-  if (!lastStep || lastStep.type !== "SteppingStoneIteration") {
+    let minQty = Infinity;
+    for (let k = 1; k < bestPath.length; k += 2) {
+      const [i, j] = bestPath[k];
+      if (typeof currentAllocations[i][j] === "number") {
+        minQty = Math.min(minQty, currentAllocations[i][j]);
+      }
+    }
+    if (minQty === Infinity || minQty <= 0) break;
+
+    const nextAllocations = currentAllocations.map(r => [...r]);
+    for (let k = 0; k < bestPath.length; k++) {
+      const [i, j] = bestPath[k];
+      if (k % 2 === 0) {
+        nextAllocations[i][j] =
+          (nextAllocations[i][j] === null || nextAllocations[i][j] === "ε")
+            ? minQty
+            : nextAllocations[i][j] + minQty;
+      } else {
+        if (nextAllocations[i][j] === "ε") {
+          nextAllocations[i][j] = null;
+        } else {
+          nextAllocations[i][j] -= minQty;
+          if (nextAllocations[i][j] === 0) nextAllocations[i][j] = null;
+        }
+      }
+    }
+
+    const previousCost = calculateTotalCost(currentAllocations, costs);
+    const newCost = calculateTotalCost(nextAllocations, costs);
+
+    iterationCount++;
     steps.push({
-      allocations: currentAllocations.map(row => [...row]),
+      allocations: nextAllocations.map(r => [...r]),
       offer: [...offer],
       demand: [...demand],
-      note: "Fin de l'optimisation Stepping Stone — solution optimale obtenue",
-      type: "SteppingStoneFinal"
+      costs,
+      note: `Itération ${iterationCount} : Δ = ${bestDelta} via (${String.fromCharCode(65 + bestCell[0])}, ${bestCell[1] + 1}), quantité transférée ${minQty}.`,
+      deltas: allDeltas,
+      minQtyApplied: minQty,
+      bestCell,
+      bestPath,
+      type: "SteppingStoneIteration",
+      previousCost,
+      stepDelta: bestDelta,
+      totalCost: newCost
     });
-  } else {
-      // If the last step was an iteration, just update its note if it's the final one
-      // eslint-disable-next-line no-undef
-      if (bestDelta >= 0) { // If no further improvement was found in the last check
-          lastStep.note = lastStep.note + " (Solution optimale atteinte).";
-          lastStep.type = "SteppingStoneFinal"; // Mark as final
-      }
-  }
 
+    currentAllocations = nextAllocations;
+  }
 
   return steps;
 }

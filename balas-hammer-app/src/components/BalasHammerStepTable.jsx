@@ -2,6 +2,7 @@
 import React from 'react';
 import { getRowChar } from './SharedUIHelpers'; // Import helper
 import "./style/balas‑hammer.css";
+import {solveBalasHammer } from "../utils/balasHammer";
 
 export default function BalasHammerStepTable({ step, cols, rows, savedCosts, costs }) {
   const maxRowPen = step.penalties ? Math.max(...step.penalties.rowPen) : -1;
@@ -73,6 +74,8 @@ export default function BalasHammerStepTable({ step, cols, rows, savedCosts, cos
             </tr>
           </tbody>
         </table>
+        
+
       </div>
 
       {/* Second table: Cost and Allocation (min(Offer, Demand)) */}
@@ -124,6 +127,22 @@ export default function BalasHammerStepTable({ step, cols, rows, savedCosts, cos
             </tr>
           </tbody>
         </table>
+        {step.isFinalBalasHammerStep && (
+  <div className="bh-cost-summary">
+    <h4>🧮 Calcul du coût total Z</h4>
+    <p className="bh-cost-formula">
+      {
+        step.zBreakdown?.map(({ i, j, cost, quantity }, idx) => (
+          <span key={idx}>
+            {quantity}×{cost}{idx !== step.zBreakdown.length - 1 ? ' + ' : ''}
+          </span>
+        ))
+      } = <strong>{step.totalCost}</strong>
+    </p>
+    <p className="bh-total-cost">✨ Coût total Z = <strong>{step.totalCost}</strong></p>
+  </div>
+)}
+
       </div>
     </div>
   );

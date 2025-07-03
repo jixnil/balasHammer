@@ -404,3 +404,107 @@
   font-weight: bold;
 
 }
+/* + / − du cycle Stepping Stone */
+.path-plus  { background:#e9fbe9; border:1px dashed #198754; }
+.path-minus { background:#fdeaea; border:1px dashed #dc3545; }
+
+/* Δ négatif */
+.delta-negative,.delta-val { color:#dc3545; font-weight:bold; }
+
+.best-delta-cell { outline:3px solid #198754; }
+.bh-cost-summary {
+  background-color: #f5faff;
+  padding: 1rem;
+  margin-top: 1rem;
+  border: 1px solid #cce5ff;
+  border-radius: 8px;
+}
+
+.bh-cost-formula {
+  font-size: 1rem;
+  font-family: monospace;
+  color: #0056b3;
+  margin-bottom: 0.5rem;
+}
+
+.bh-total-cost {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #0a0;
+}
+/* === STEPPING STONE TABLE === */
+.ss-table           { border-collapse: separate; border-spacing: 5px; }
+.ss-table th,
+.ss-table td        { width: 56px; height: 46px; text-align: center; }
+.ss-label           { font-weight: 600; }
+.ss-cost            { color:#666; font-size: 0.8rem; }
+.ss-alloc           { font-weight:700; color:#b30000; }
+
+.ss-demand, .ss-offer    { background:#f0f4ff; font-weight:600; }
+.ss-demand               { border-top: 2px solid #99b; }
+.ss-offer                { border-left:2px solid #99b; }
+
+.path-plus   { outline:2px dashed #2ca62c; }
+.path-minus  { outline:2px dashed #c82333; }
+.delta-val   { font-size:0.7rem; margin-top:2px; }
+.delta-negative        { color:#c82333; font-weight:700; }
+
+.ss-delta-list p       { margin:0.2rem 0; font-family:monospace; }
+.delta-negative-text   { color:#c82333; font-weight:700; }
+
+.z-formula             { margin-top:0.6rem; font-family:monospace; }
+.z-final               { font-weight:700; font-size:1.1rem; color:#047d04; }
+.delta-detail-box {
+  border: 1px solid #aaa;
+  padding: 8px;
+  margin: 8px 0;
+  background-color: #f9f9f9;
+  border-radius: 6px;
+}
+.delta-title {
+  font-weight: bold;
+  margin-bottom: 5px;
+  color: #333;
+}
+/* dans balas‑hammer.css */
+
+.ss-delta-list {
+  margin-top: 1rem;
+  padding: 0.5rem;
+  background: #f9f9f9;
+  border-left: 4px solid #bbb;
+  font-family: monospace;
+}
+
+.delta-negative-text {
+  color: red;
+  font-weight: bold;
+}
+
+.z-formula {
+  margin-top: 1rem;
+  font-size: 1.1rem;
+}
+
+.z-final {
+  font-weight: bold;
+  color: green;
+}
+
+.delta-detail-box {
+  margin-top: 1rem;
+  border: 1px solid #ddd;
+  padding: 0.8rem;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.ss-section-title {
+  margin-top: 1.5rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  border-bottom: 2px solid #444;
+  display: inline-block;
+}
+
+
